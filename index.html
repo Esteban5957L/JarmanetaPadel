@@ -1,1 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Torneos de Pádel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mini Torneos de Pádel</h1>
+            <p>Organiza torneos de pádel con tus amigos de forma sencilla</p>
+        </header>
 
+        <div class="tab-container">
+            <ul class="tabs">
+                <li class="active" data-tab="players">Jugadores</li>
+                <li data-tab="tournament">Crear Torneo</li>
+                <li data-tab="matches">Partidos</li>
+                <li data-tab="results">Resultados</li>
+                <li data-tab="info">Formatos de Torneos</li>
+            </ul>
+
+            <div id="players" class="tab-content active">
+                <section>
+                    <h2>Registro de Jugadores</h2>
+                    <form id="playerForm">
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="playerName">Nombre del Jugador</label>
+                                    <input type="text" id="playerName" required>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="playerLevel">Nivel de Experiencia</label>
+                                    <select id="playerLevel" required>
+                                        <option value="">Seleccionar nivel</option>
+                                        <option value="1">Principiante (1)</option>
+                                        <option value="2">Básico (2)</option>
+                                        <option value="3">Intermedio (3)</option>
+                                        <option value="4">Intermedio-Alto (4)</option>
+                                        <option value="5">Avanzado (5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit">Agregar Jugador</button>
+                    </form>
+                </section>
+
+                <section>
+                    <h2>Jugadores Registrados</h2>
+                    <div id="playersList"></div>
+                    <button id="clearPlayers" style="background-color: #e74c3c;">Borrar Todos los Jugadores</button>
+                </section>
+            </div>
+
+            <div id="tournament" class="tab-content">
+                <section>
+                    <h2>Configuración del Torneo</h2>
+                    <form id="tournamentForm">
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="tournamentName">Nombre del Torneo</label>
+                                    <input type="text" id="tournamentName" required>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="tournamentType">Tipo de Torneo</label>
+                                    <select id="tournamentType" required>
+                                        <option value="">Seleccionar formato</option>
+                                        <option value="eliminacion">Eliminación Directa</option>
+                                        <option value="grupos">Fase de Grupos</option>
+                                        <option value="americano">Torneo Americano (Todos contra Todos)</option>
+                                        <option value="americanoExpress">Americano Express (Cambiando Parejas)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tournament-type-info" id="tournamentTypeInfo">
+                            Selecciona un tipo de torneo para ver su descripción.
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="numCourts">Número de Canchas</label>
+                                    <input type="number" id="numCourts" min="1" value="1" required>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="numSets">Sets por Partido</label>
+                                    <select id="numSets" required>
+                                        <option value="1">1 Set</option>
+                                        <option value="3" selected>3 Sets (Al mejor de 3)</option>
+                                        <option value="5">5 Sets (Al mejor de 5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="numGroupsContainer" style="display: none;">
+                            <label for="numGroups">Número de Grupos</label>
+                            <input type="number" id="numGroups" min="2" value="2">
+                        </div>
+
+                        <button type="submit">Crear Torneo</button>
+                    </form>
+                </section>
+
+                <section>
+                    <h2>Equipos Generados</h2>
+                    <div id="teamsContainer"></div>
+                </section>
+            </div>
+
+            <div id="matches" class="tab-content">
+                <section>
+                    <h2>Partidos del Torneo</h2>
+                    <div id="matchesContainer">
+                        <div class="info-box">
+                            No hay partidos programados. Por favor, crea un torneo primero.
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Distribución de Canchas</h2>
+                    <div id="courtsContainer">
+                        <div class="info-box">
+                            No hay canchas asignadas. Por favor, crea un torneo primero.
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="results" class="tab-content">
+                <section>
+                    <h2>Resultados del Torneo</h2>
+                    <div id="resultsContainer">
+                        <div class="info-box">
+                            No hay resultados disponibles. Por favor, completa los partidos del torneo.
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Exportar Resultados</h2>
+                    <button id="generateImage">Generar Imagen de Resultados</button>
+                    
+                    <div id="canvas-container" style="display: none;">
+                        <canvas id="resultsCanvas" width="800" height="600"></canvas>
+                    </div>
+                    
+                    <div id="exportResult"></div>
+                    
+                    <div class="export-buttons" style="display: none;">
+                        <button id="downloadImage">Descargar Imagen</button>
+                        <button id="shareImage">Compartir Imagen</button>
+                    </div>
+                </section>
+            </div>
+
+            <div id="info" class="tab-content">
+                <section>
+                    <h2>Formatos de Torneos de Pádel</h2>
+                    
+                    <div class="tournament-card">
+                        <h3>Eliminación Directa</h3>
+                        <p>Es el formato más tradicional y conocido. Se realiza un sorteo con todas las parejas, y los enfrentamientos se organizan en un cuadro. Los ganadores de cada enfrentamiento avanzan a las rondas siguientes hasta llegar a la final.</p>
+                        <p><strong>Ventajas:</strong> Emocionante, genera alta competitividad y es rápido de completar.</p>
+                        <p><strong>Desventajas:</strong> Las parejas eliminadas dejan de jugar, lo que puede resultar en pocas partidas para algunos jugadores.</p>
+                        <p><strong>Ideal para:</strong> Grupos grandes con tiempo limitado.</p>
+                    </div>
+                    
+                    <div class="tournament-card">
+                        <h3>Fase de Grupos</h3>
+                        <p>También conocido como "Round Robin" o liga. Se forman grupos y cada pareja compite con todas las demás parejas de su grupo. Las parejas que ganan más partidos o acumulan más puntos avanzan a una fase final.</p>
+                        <p><strong>Ventajas:</strong> Todos los jugadores disputan varios partidos, permitiendo más tiempo de juego.</p>
+                        <p><strong>Desventajas:</strong> Requiere más tiempo para completarse.</p>
+                        <p><strong>Ideal para:</strong> Grupos medianos que quieren garantizar un mínimo de partidos para todos.</p>
+                    </div>
+                    
+                    <div class="tournament-card">
+                        <h3>Torneo Americano (Todos contra Todos)</h3>
+                        <p>Todas las parejas juegan entre sí. La clasificación final se determina por el número de partidos ganados o puntos acumulados.</p>
+                        <p><strong>Ventajas:</strong> Máximo número de partidos para todos los participantes.</p>
+                        <p><strong>Desventajas:</strong> Puede ser muy extenso con muchas parejas.</p>
+                        <p><strong>Ideal para:</strong> Grupos pequeños (4-6 parejas) o eventos sociales donde lo importante es jugar mucho.</p>
+                    </div>
+                    
+                    <div class="tournament-card">
+                        <h3>Americano Express (Cambiando Parejas)</h3>
+                        <p>Cada jugador tiene la oportunidad de enfrentarse a todos los demás participantes del grupo, cambiando de pareja en cada partido. La puntuación es individual, sumando los puntos o partidas ganadas con diferentes compañeros.</p>
+                        <p><strong>Ventajas:</strong> Dinámico, divertido y social. Se adapta a cualquier número de jugadores (incluso impar).</p>
+                        <p><strong>Desventajas:</strong> No permite una competición por parejas fijas.</p>
+                        <p><strong>Ideal para:</strong> Eventos sociales o cuando no se tienen parejas definidas.</p>
+                    </div>
+                </section>
+
+                <section id="howTo">
+                    <h2>Cómo Usar Esta Aplicación</h2>
+                    
+                    <h3>Paso 1: Registro de Jugadores</h3>
+                    <ol>
+                        <li>Agrega a todos los jugadores con su nombre y nivel de experiencia.</li>
+                        <li>El nivel de experiencia ayudará a equilibrar los equipos aleatoriamente.</li>
+                    </ol>
+                    
+                    <h3>Paso 2: Crear el Torneo</h3>
+                    <ol>
+                        <li>Asigna un nombre al torneo y selecciona el formato que prefieras.</li>
+                        <li>Indica el número de canchas disponibles y sets por partido.</li>
+                        <li>Pulsa "Crear Torneo" para generar automáticamente los equipos equilibrados y el calendario de partidos.</li>
+                    </ol>
+                    
+                    <h3>Paso 3: Gestionar los Partidos</h3>
+                    <ol>
+                        <li>En la pestaña "Partidos" verás todos los enfrentamientos programados.</li>
+                        <li>Registra los resultados a medida que se completen los partidos.</li>
+                        <li>Verás la distribución de partidos por cancha para organizar mejor el torneo.</li>
+                    </ol>
+                    
+                    <h3>Paso 4: Ver y Compartir Resultados</h3>
+                    <ol>
+                        <li>En la pestaña "Resultados" podrás ver la clasificación final del torneo.</li>
+                        <li>Genera una imagen con los resultados para compartir con tus amigos.</li>
+                        <li>Descarga o comparte directamente la imagen en redes sociales.</li>
+                    </ol>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
