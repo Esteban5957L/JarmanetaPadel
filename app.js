@@ -466,464 +466,21 @@ function generateEliminationMatches() {
 
 // Generar partidos para torneo de fase de grupos
 function generateGroupMatches() {
-    const numGroups = tournament.numGroups || 2;
-    const teamsPerGroup = Math.ceil(teams.length / numGroups);
-    
-    // Distribuir equipos en grupos
-    const groups = Array.from({ length: numGroups }, () => []);
-    
-    for (let i = 0; i < teams.length; i++) {
-        const groupIndex = Math.floor(i / teamsPerGroup);
-        if (groupIndex < numGroups) {
-            groups[groupIndex].push(teams[i]);
-        }
-    }
-    
-    // Generar partidos dentro de cada grupo (todos contra todos)
-    groups.forEach((group, groupIndex) => {
-        for (let i = 0; i < group.length; i++) {
-            for (let j = i + 1; j < group.length; j++) {
-                const match = {
-                    id: `match_group${groupIndex + 1}_${i + 1}vs${j + 1}`,
-                    group: groupIndex + 1,
-                    phase: 'grupos',
-                    team1: group[i],
-                    team2: group[j],
-                    scores: [],
-                    winner: null,
-                    court: null,
-                    completed: false
-                };
-                
-                matches.push(match);
-            }
-        }
-    });
-    
-    // Crear estructura para fase final (mejores de cada grupo)
-    const numTeamsNextRound = numGroups * 2; // 2 equipos avanzan por grupo
-    const eliminationRounds = Math.ceil(Math.log2(numTeamsNextRound));
-    const totalEliminationMatches = Math.pow(2, eliminationRounds) - 1;
-    
-    for (let i = 0; i < totalEliminationMatches; i++) {
-        const round = Math.floor(Math.log2(i + 1)) + 1;
-        const matchInRound = i - (Math.pow(2, round - 1) - 1);
-        
-        const match = {
-            id: 'match_final_' + i,
-            round: round,
-            phase: 'eliminacion',
-            matchNumber: matchInRound + 1,
-            team1: null,
-            team2: null,
-            scores: [],
-            winner: null,
-            court: null,
-            completed: false
-        };
-        
-        matches.push(match);
-    }
-}
-
-// Generar partidos para torneo americano (todos contra todos)
-function generateRoundRobinMatches() {
-    for (let i = 0; i < teams.length; i++) {
-        for (let j = i + 1; j < teams.length; j++) {
-            const match = {
-                id: `match_${i + 1}vs${j + 1}`,
-                team1: teams[i],
-                team2: teams[j],
-                scores: [],
-                winner: null,
-                court: null,
-                completed: false
-            };
-            
-            matches.push(match);
-        }
-    }
-}
-
-// Generar partidos para torneo americano express (cambiando parejas)
-function generateAmericanoExpressMatches() {
-    // En este formato, cada jugador juega con diferentes compañeros
-    // Vamos a generar rondas donde en cada ronda se mezclan las parejas
-    
-    // Si hay un número impar de jugadores, agregar un jugador "dummy"
-    const playersCopy = [...players];
-    if (playersCopy.length % 2 !== 0) {
-        playersCopy.push({
-            id: 'dummy',
-            name: 'Bye',
-            level: 0
-        });
-    }
-    
-    // Número de rondas: cada jugador debe jugar con/contra todos los demás
-    const numRounds = playersCopy.length - 1;
-    
-    // Aplicamos el algoritmo "Circle Method" para crear las rondas
-    // Un jugador fijo, los demás rotan
-    const fixed = playersCopy[0];
-    const rotating = playersCopy.slice(1);
-    
-    for (let round = 0; round < numRounds; round++) {
-        const matchesInRound = playersCopy.length / 4;
-        
-        // Para cada ronda, crear las parejas
-        for (let i = 0; i < matchesInRound; i++) {
-            // Crear primer equipo
-            const team1 = {
-                id: `team_round${round + 1}_1_${i}`,
-                players: [
-                    i === 0 ? fixed : rotating[i - 1],
-                    rotating[rotating.length - i - 1]
-                ],
-                isTemporary: true
-            };
-            
-            // Crear segundo equipo
-            const team2 = {
-                id: `team_round${round + 1}_2_${i}`,
-                players: [
-                    rotating[i],
-                    rotating[rotating.length - i - 2]
-                ],
-                isTemporary: true
-            };
-            
-            // Si algún equipo tiene al jugador "dummy", este partido no se juega
-            if (team1.players.some(p => p.id === 'dummy') || 
-                team2.players.some(p => p.id === 'dummy')) {
-                continue;
-            }
-            
-            // Crear partido
-            const match = {
-                id: `match_round${round + 1}_${i + 1}`,
-                round: round + 1,
-                team1,
-                team2,
-                scores: [],
-                winner: null,
-                court: null,
-                completed: false
-            };
-            
-            matches.push(match);
-        }
-        
-        // Rotar jugadores para la siguiente ronda
-        rotating.unshift(rotating.pop());
-    }
-}
-
-// Asignar canchas a los partidos
-function assignCourts() {
-    courts = [];
-    
-    // Crear canchas
-    for (let i = 0; i < tournament.numCourts; i++) {
-        courts.push({
-            id: `court_${i + 1}`,
-            name: `Cancha ${i + 1}`,
-            matches: []
-        });
-    }
-    
-    // Distribuir partidos en canchas de forma equitativa
-    matches.forEach((match, index) => {
-        const courtIndex = index % tournament.numCourts;
-        match.court = courts[courtIndex].id;
-        courts[courtIndex].matches.push(match.id);
-    });
-    
-    renderCourts();
-}
-
-// Renderizar canchas
-function renderCourts() {
-    const container = document.getElementById('courtsContainer');
-    
-    if (courts.length === 0) {
-        container.innerHTML = '<div class="info-box">No hay canchas asignadas. Por favor, crea un torneo primero.</div>';
-        return;
-    }
-    
-    let html = '<div class="courts-container">';
-    
-    courts.forEach(court => {
-        html += `
-            <div class="court-card">
-                <div class="court-header">
-                    <h3>${court.name}</h3>
-                    <span>${court.matches.length} partidos</span>
-                </div>
-                <div class="court-matches">
-        `;
-        
-        if (court.matches.length === 0) {
-            html += '<p>No hay partidos asignados a esta cancha.</p>';
-        } else {
-            court.matches.forEach(matchId => {
-                const match = matches.find(m => m.id === matchId);
-                if (match) {
-                    let matchInfo = '';
-                    
-                    if (match.team1 && match.team2) {
-                        // Formatear nombres de equipo
-                        const team1Names = match.team1.players.map(p => p.name).join(' / ');
-                        const team2Names = match.team2.players.map(p => p.name).join(' / ');
-                        
-                        matchInfo = `${team1Names} vs ${team2Names}`;
-                        
-                        if (match.completed) {
-                            matchInfo += ' (Completado)';
-                        }
-                    } else {
-                        matchInfo = 'Partido por definir';
-                    }
-                    
-                    html += `<div class="court-match">${matchInfo}</div>`;
-                }
-            });
-        }
-        
-        html += '</div></div>';
-    });
-    
-    html += '</div>';
-    
-    container.innerHTML = html;
-}
-
-// Renderizar partidos
-function renderMatches() {
-    const container = document.getElementById('matchesContainer');
-    
-    if (matches.length === 0) {
-        container.innerHTML = '<div class="info-box">No hay partidos programados. Por favor, crea un torneo primero.</div>';
-        return;
-    }
-    
     let html = '';
+    const numGroups = tournament.numGroups;
     
-    if (tournament.type === 'eliminacion') {
-        // Para torneos de eliminación, mostrar bracket
-        html += renderEliminationBracket();
-    } else if (tournament.type === 'grupos') {
-        // Para torneos de grupos, mostrar grupos y luego bracket
-        html += renderGroupMatches();
-    } else {
-        // Para otros formatos, mostrar lista de partidos
-        html += renderMatchList();
-    }
-    
-    container.innerHTML = html;
-    
-    // Agregar eventos para registrar resultados
-    document.querySelectorAll('.save-score').forEach(button => {
-        button.addEventListener('click', function() {
-            const matchId = this.getAttribute('data-match');
-            const match = matches.find(m => m.id === matchId);
-            
-            if (match) {
-                const scoreInputs = document.querySelectorAll(`[data-match="${matchId}"].score-input`);
-                const scores = [];
-                
-                // Recoger puntuaciones
-                scoreInputs.forEach(input => {
-                    const team = input.getAttribute('data-team');
-                    const set = parseInt(input.getAttribute('data-set'));
-                    
-                    if (!scores[set - 1]) {
-                        scores[set - 1] = {};
-                    }
-                    
-                    scores[set - 1][team] = parseInt(input.value) || 0;
-                });
-                
-                // Guardar puntuaciones
-                match.scores = scores;
-                
-                // Determinar ganador
-                let team1Sets = 0;
-                let team2Sets = 0;
-                
-                scores.forEach(set => {
-                    if (set.team1 > set.team2) {
-                        team1Sets++;
-                    } else if (set.team2 > set.team1) {
-                        team2Sets++;
-                    }
-                });
-                
-                if (team1Sets > team2Sets) {
-                    match.winner = 'team1';
-                } else if (team2Sets > team1Sets) {
-                    match.winner = 'team2';
-                } else {
-                    match.winner = null; // Empate o incompleto
-                }
-                
-                // Marcar como completado si hay un ganador
-                match.completed = match.winner !== null;
-                
-                // Si es torneo de eliminación, actualizar siguiente ronda
-                if (tournament.type === 'eliminacion' && match.completed) {
-                    updateEliminationBracket(match);
-                }
-                
-                saveLocalData();
-                renderMatches();
-                renderResults();
-            }
-        });
-    });
-}
-
-// Renderizar lista de partidos
-function renderMatchList() {
-    let html = '';
-    
-    matches.forEach(match => {
-        if (!match.team1 || !match.team2) return;
-        
-        const team1Names = match.team1.players.map(p => p.name).join(' / ');
-        const team2Names = match.team2.players.map(p => p.name).join(' / ');
-        
-        const courtName = courts.find(c => c.id === match.court)?.name || '';
-        
-        html += `
-            <div class="match-card" data-id="${match.id}">
-                <div class="match-header">
-                    <span>${match.round ? 'Ronda ' + match.round : ''}</span>
-                    <span>${courtName}</span>
-                </div>
-                <div class="match-teams">
-                    <div class="match-team ${match.winner === 'team1' ? 'winner' : ''}">
-                        <strong>${team1Names}</strong>
-                    </div>
-                    <div style="text-align: center; padding: 0 10px;">VS</div>
-                    <div class="match-team ${match.winner === 'team2' ? 'winner' : ''}">
-                        <strong>${team2Names}</strong>
-                    </div>
-                </div>
-        `;
-        
-        // Mostrar formulario para puntajes
-        html += '<div class="match-score">';
-        
-        for (let i = 1; i <= tournament.numSets; i++) {
-            const setScore = match.scores[i - 1] || { team1: 0, team2: 0 };
-            
-            html += `
-                <div>
-                    <label>Set ${i}:</label>
-                    <div style="display: flex; gap: 10px; margin-top: 5px;">
-                        <input type="number" min="0" class="score-input" value="${setScore.team1 || ''}" 
-                            data-match="${match.id}" data-team="team1" data-set="${i}">
-                        <input type="number" min="0" class="score-input" value="${setScore.team2 || ''}" 
-                            data-match="${match.id}" data-team="team2" data-set="${i}">
-                    </div>
-                </div>
-            `;
-        }
-        
-        html += '</div>';
-        
-        // Botón para guardar resultados
-        html += `
-            <div style="text-align: center; margin-top: 15px;">
-                <button class="save-score" data-match="${match.id}">Guardar Resultado</button>
-            </div>
-        `;
-        
-        html += '</div>';
-    });
-    
-    return html;
-}
-
-// Renderizar partidos de fase de grupos
-function renderGroupMatches() {
-    let html = '';
-    const numGroups = tournament.numGroups || 2;
-    
-    // Agrupar partidos por grupo
     for (let i = 0; i < numGroups; i++) {
         const groupMatches = matches.filter(m => m.group === i + 1);
         
-        if (groupMatches.length > 0) {
-            html += `
-                <div class="tournament-card">
-                    <h3>Grupo ${i + 1}</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Equipo</th>
-                                <th>PJ</th>
-                                <th>PG</th>
-                                <th>PP</th>
-                                <th>Puntos</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            // Obtener equipos únicos del grupo
-            const groupTeams = [];
-            groupMatches.forEach(match => {
-                if (match.team1 && !groupTeams.some(t => t.id === match.team1.id)) {
-                    groupTeams.push(match.team1);
-                }
-                if (match.team2 && !groupTeams.some(t => t.id === match.team2.id)) {
-                    groupTeams.push(match.team2);
-                }
-            });
-            
-            // Calcular estadísticas por equipo
-            groupTeams.forEach(team => {
-                const teamMatches = groupMatches.filter(m => 
-                    (m.team1 && m.team1.id === team.id) || 
-                    (m.team2 && m.team2.id === team.id)
-                );
-                
-                const played = teamMatches.filter(m => m.completed).length;
-                let won = 0;
-                let lost = 0;
-                
-                teamMatches.forEach(match => {
-                    if (!match.completed) return;
-                    
-                    if ((match.team1 && match.team1.id === team.id && match.winner === 'team1') || 
-                        (match.team2 && match.team2.id === team.id && match.winner === 'team2')) {
-                        won++;
-                    } else {
-                        lost++;
-                    }
-                });
-                
-                const points = won * 3; // 3 puntos por victoria
-                
-                const teamNames = team.players.map(p => p.name).join(' / ');
-                
-                html += `
-                    <tr>
-                        <td>${teamNames}</td>
-                        <td>${played}</td>
-                        <td>${won}</td>
-                        <td>${lost}</td>
-                        <td>${points}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            
-            // Mostrar partidos del grupo
-            html += '<div style="margin-top: 15px;">';
+        html += `
+            <div class="tournament-card">
+                <h3>Grupo ${i + 1}</h3>
+                <div class="group-matches">
+        `;
+        
+        if (groupMatches.length === 0) {
+            html += '<div class="info-box">No hay partidos programados para este grupo.</div>';
+        } else {
             groupMatches.forEach(match => {
                 if (!match.team1 || !match.team2) return;
                 
@@ -941,51 +498,43 @@ function renderGroupMatches() {
                                 <strong>${team2Names}</strong>
                             </div>
                         </div>
-                `;
-                
-                // Mostrar formulario para puntajes
-                html += '<div class="match-score">';
-                
-                for (let i = 1; i <= tournament.numSets; i++) {
-                    const setScore = match.scores[i - 1] || { team1: 0, team2: 0 };
-                    
-                    html += `
-                        <div>
-                            <label>Set ${i}:</label>
-                            <div style="display: flex; gap: 10px; margin-top: 5px;">
-                                <input type="number" min="0" class="score-input" value="${setScore.team1 || ''}" 
-                                    data-match="${match.id}" data-team="team1" data-set="${i}">
-                                <input type="number" min="0" class="score-input" value="${setScore.team2 || ''}" 
-                                    data-match="${match.id}" data-team="team2" data-set="${i}">
+                        ${!match.completed ? `
+                            <div class="match-score">
+                                ${Array.from({ length: tournament.numSets }, (_, i) => {
+                                    const setScore = match.scores[i] || { team1: 0, team2: 0 };
+                                    return `
+                                        <div>
+                                            <label>Set ${i + 1}</label>
+                                            <div class="score-inputs">
+                                                <select class="score-input" data-match="${match.id}" data-team="team1" data-set="${i + 1}">
+                                                    <option value="0" ${setScore.team1 === 0 ? 'selected' : ''}>0</option>
+                                                    <option value="15" ${setScore.team1 === 1 ? 'selected' : ''}>15</option>
+                                                    <option value="30" ${setScore.team1 === 2 ? 'selected' : ''}>30</option>
+                                                    <option value="40" ${setScore.team1 === 3 ? 'selected' : ''}>40</option>
+                                                    <option value="V" ${setScore.team1 === 4 ? 'selected' : ''}>V</option>
+                                                </select>
+                                                <select class="score-input" data-match="${match.id}" data-team="team2" data-set="${i + 1}">
+                                                    <option value="0" ${setScore.team2 === 0 ? 'selected' : ''}>0</option>
+                                                    <option value="15" ${setScore.team2 === 1 ? 'selected' : ''}>15</option>
+                                                    <option value="30" ${setScore.team2 === 2 ? 'selected' : ''}>30</option>
+                                                    <option value="40" ${setScore.team2 === 3 ? 'selected' : ''}>40</option>
+                                                    <option value="V" ${setScore.team2 === 4 ? 'selected' : ''}>V</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                                <div style="text-align: center; margin-top: 10px;">
+                                    <button class="save-score" data-match="${match.id}">Guardar Resultado</button>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                }
-                
-                html += '</div>';
-                
-                // Botón para guardar resultados
-                html += `
-                    <div style="text-align: center; margin-top: 15px;">
-                        <button class="save-score" data-match="${match.id}">Guardar Resultado</button>
+                        ` : ''}
                     </div>
                 `;
-                
-                html += '</div>';
             });
-            
-            html += '</div></div>';
         }
-    }
-    
-    // Mostrar fase final si hay partidos
-    const finalMatches = matches.filter(m => m.phase === 'eliminacion');
-    
-    if (finalMatches.length > 0) {
-        html += '<div class="tournament-card">';
-        html += '<h3>Fase Final</h3>';
-        html += renderEliminationBracket(finalMatches);
-        html += '</div>';
+        
+        html += '</div></div>';
     }
     
     return html;
@@ -994,38 +543,21 @@ function renderGroupMatches() {
 // Renderizar bracket de eliminación
 function renderEliminationBracket(matchesToRender = null) {
     const matchesToUse = matchesToRender || matches;
-    
-    // Agrupar partidos por ronda
+    const rounds = [...new Set(matchesToUse.map(m => m.round))].sort((a, b) => a - b);
     const roundsMap = {};
-    matchesToUse.forEach(match => {
-        if (!match.round) return;
-        
-        if (!roundsMap[match.round]) {
-            roundsMap[match.round] = [];
-        }
-        
-        roundsMap[match.round].push(match);
+    
+    rounds.forEach(round => {
+        roundsMap[round] = matchesToUse.filter(m => m.round === round);
     });
     
-    const rounds = Object.keys(roundsMap).sort((a, b) => a - b);
+    let html = '<div class="tournament-bracket">';
+    html += '<div class="bracket-container">';
     
-    // Si no hay rondas, mostrar mensaje
-    if (rounds.length === 0) {
-        return '<div class="info-box">No hay partidos de eliminación directa configurados.</div>';
-    }
-    
-    let html = '<div class="tournament-bracket"><div class="bracket-container">';
-    
-    // Renderizar cada ronda
     rounds.forEach(round => {
         const roundMatches = roundsMap[round].sort((a, b) => a.matchNumber - b.matchNumber);
         
-        html += `
-            <div class="round">
-                <div class="round-title">
-                    ${getRoundName(round, rounds.length)}
-                </div>
-        `;
+        html += '<div class="round">';
+        html += `<div class="round-title">Ronda ${round}</div>`;
         
         roundMatches.forEach(match => {
             let team1Name = 'Por definir';
@@ -1039,87 +571,55 @@ function renderEliminationBracket(matchesToRender = null) {
                 team2Name = match.team2.players.map(p => p.name).join(' / ');
             }
             
-            // Obtener puntuaciones si hay
-            let scoreHTML = '';
-            if (match.scores && match.scores.length > 0) {
-                const sets1 = match.scores.filter(s => s.team1 > s.team2).length;
-                const sets2 = match.scores.filter(s => s.team2 > s.team1).length;
-                
-                scoreHTML = `
-                    <span class="bracket-score">${sets1}</span>
-                    <span class="bracket-score">${sets2}</span>
-                `;
-            }
-            
             html += `
-                <div class="bracket-match" data-id="${match.id}">
-                    <div class="bracket-team ${match.winner === 'team1' ? 'bracket-winner' : ''}">
+                <div class="bracket-match ${match.completed ? 'completed' : ''}" data-id="${match.id}">
+                    <div class="bracket-team ${match.winner === 'team1' ? 'winner' : ''}">
                         <span>${team1Name}</span>
-                        ${match.winner === 'team1' ? scoreHTML : ''}
+                        <span class="bracket-score">${match.scores ? match.scores.map(s => s.team1).join('-') : ''}</span>
                     </div>
-                    <div class="bracket-team ${match.winner === 'team2' ? 'bracket-winner' : ''}">
+                    <div class="bracket-team ${match.winner === 'team2' ? 'winner' : ''}">
                         <span>${team2Name}</span>
-                        ${match.winner === 'team2' ? scoreHTML : ''}
+                        <span class="bracket-score">${match.scores ? match.scores.map(s => s.team2).join('-') : ''}</span>
                     </div>
-            `;
-            
-            // Si no está completado, mostrar formulario para resultados
-            if (!match.completed && match.team1 && match.team2) {
-                html += `
-                    <div style="margin-top: 10px;">
-                        <button class="btn-show-score" data-match="${match.id}">Ingresar Resultado</button>
-                        <div class="score-form" id="score-form-${match.id}" style="display: none; margin-top: 10px;">
-                            <div class="match-score">
-                `;
-                
-                for (let i = 1; i <= tournament.numSets; i++) {
-                    const setScore = match.scores[i - 1] || { team1: 0, team2: 0 };
-                    
-                    html += `
-                        <div>
-                            <label>Set ${i}:</label>
-                            <div style="display: flex; gap: 5px; margin-top: 5px;">
-                                <input type="number" min="0" class="score-input" style="width: 40px;" value="${setScore.team1 || ''}" 
-                                    data-match="${match.id}" data-team="team1" data-set="${i}">
-                                <input type="number" min="0" class="score-input" style="width: 40px;" value="${setScore.team2 || ''}" 
-                                    data-match="${match.id}" data-team="team2" data-set="${i}">
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                html += `
-                            </div>
+                    ${!match.completed ? `
+                        <div class="match-score">
+                            ${Array.from({ length: tournament.numSets }, (_, i) => {
+                                const setScore = match.scores[i] || { team1: 0, team2: 0 };
+                                return `
+                                    <div>
+                                        <label>Set ${i + 1}</label>
+                                        <div class="score-inputs">
+                                            <select class="score-input" data-match="${match.id}" data-team="team1" data-set="${i + 1}">
+                                                <option value="0" ${setScore.team1 === 0 ? 'selected' : ''}>0</option>
+                                                <option value="15" ${setScore.team1 === 1 ? 'selected' : ''}>15</option>
+                                                <option value="30" ${setScore.team1 === 2 ? 'selected' : ''}>30</option>
+                                                <option value="40" ${setScore.team1 === 3 ? 'selected' : ''}>40</option>
+                                                <option value="V" ${setScore.team1 === 4 ? 'selected' : ''}>V</option>
+                                            </select>
+                                            <select class="score-input" data-match="${match.id}" data-team="team2" data-set="${i + 1}">
+                                                <option value="0" ${setScore.team2 === 0 ? 'selected' : ''}>0</option>
+                                                <option value="15" ${setScore.team2 === 1 ? 'selected' : ''}>15</option>
+                                                <option value="30" ${setScore.team2 === 2 ? 'selected' : ''}>30</option>
+                                                <option value="40" ${setScore.team2 === 3 ? 'selected' : ''}>40</option>
+                                                <option value="V" ${setScore.team2 === 4 ? 'selected' : ''}>V</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                             <div style="text-align: center; margin-top: 10px;">
-                                <button class="save-score" data-match="${match.id}">Guardar</button>
+                                <button class="save-score" data-match="${match.id}">Guardar Resultado</button>
                             </div>
                         </div>
-                    </div>
-                `;
-            }
-            
-            html += '</div>';
+                    ` : ''}
+                </div>
+            `;
         });
         
         html += '</div>';
     });
     
     html += '</div></div>';
-    
-    // Agregar script para mostrar/ocultar formularios de puntuación
-    html += `
-        <script>
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btn-show-score')) {
-                    const matchId = e.target.getAttribute('data-match');
-                    const form = document.getElementById('score-form-' + matchId);
-                    if (form) {
-                        form.style.display = form.style.display === 'none' ? 'block' : 'none';
-                    }
-                }
-            });
-        </script>
-    `;
     
     return html;
 }
@@ -1532,12 +1032,108 @@ function renderCompletedMatches() {
     return html;
 }
 
+// Función para agregar eventos a los botones de partidos
+function addMatchEventListeners() {
+    // Manejar botones de mostrar/ocultar formulario
+    document.querySelectorAll('.btn-show-score').forEach(button => {
+        button.addEventListener('click', function() {
+            const matchId = this.getAttribute('data-match');
+            const form = document.getElementById('score-form-' + matchId);
+            if (form) {
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+    });
+
+    // Manejar botones de guardar resultados
+    document.querySelectorAll('.save-score').forEach(button => {
+        button.addEventListener('click', function() {
+            const matchId = this.getAttribute('data-match');
+            const match = matches.find(m => m.id === matchId);
+            
+            if (match) {
+                const scoreInputs = document.querySelectorAll(`[data-match="${matchId}"].score-input`);
+                const scores = [];
+                
+                // Recoger puntuaciones
+                scoreInputs.forEach(input => {
+                    const team = input.getAttribute('data-team');
+                    const set = parseInt(input.getAttribute('data-set'));
+                    
+                    if (!scores[set - 1]) {
+                        scores[set - 1] = {};
+                    }
+                    
+                    // Convertir puntuación de pádel a número
+                    const padelScore = input.value;
+                    let numericScore = 0;
+                    
+                    switch(padelScore) {
+                        case '0': numericScore = 0; break;
+                        case '15': numericScore = 1; break;
+                        case '30': numericScore = 2; break;
+                        case '40': numericScore = 3; break;
+                        case 'V': numericScore = 4; break;
+                        default: numericScore = 0;
+                    }
+                    
+                    scores[set - 1][team] = numericScore;
+                });
+                
+                // Guardar puntuaciones
+                match.scores = scores;
+                
+                // Determinar ganador
+                let team1Sets = 0;
+                let team2Sets = 0;
+                
+                scores.forEach(set => {
+                    if (set.team1 > set.team2) {
+                        team1Sets++;
+                    } else if (set.team2 > set.team1) {
+                        team2Sets++;
+                    }
+                });
+                
+                if (team1Sets > team2Sets) {
+                    match.winner = 'team1';
+                } else if (team2Sets > team1Sets) {
+                    match.winner = 'team2';
+                } else {
+                    match.winner = null; // Empate o incompleto
+                }
+                
+                // Marcar como completado si hay un ganador
+                match.completed = match.winner !== null;
+                
+                // Si es torneo de eliminación, actualizar siguiente ronda
+                if (tournament.type === 'eliminacion' && match.completed) {
+                    updateEliminationBracket(match);
+                }
+                
+                // Guardar datos y actualizar vista
+                saveLocalData();
+                renderMatches();
+                renderResults();
+            }
+        });
+    });
+}
+
+// Función para convertir puntuación numérica a puntuación de pádel
+function getPadelScore(numericScore) {
+    switch(numericScore) {
+        case 0: return '0';
+        case 1: return '15';
+        case 2: return '30';
+        case 3: return '40';
+        case 4: return 'V';
+        default: return '0';
+    }
+}
+
 // Generar imagen de resultados
 document.getElementById('generateImage').addEventListener('click', function() {
-    if (!tournament || matches.filter(m => m.completed).length === 0) {
-        alert('No hay resultados para exportar. Completa algunos partidos primero.');
-        return;
-    }
     
     const canvas = document.getElementById('resultsCanvas');
     const ctx = canvas.getContext('2d');
@@ -1638,6 +1234,17 @@ function drawRoundRobinResults(ctx) {
             } else {
                 teamStats[match.team1.id].lost++;
             }
+            
+            // Contar sets
+            match.scores.forEach(set => {
+                if (set.team1 > set.team2) {
+                    teamStats[match.team1.id].setsFavor++;
+                    teamStats[match.team1.id].points += 1; // 1 punto adicional por set ganado
+                }
+                if (set.team2 > 0) {
+                    teamStats[match.team1.id].setsContra++;
+                }
+            });
         }
         
         // Equipo 2
@@ -1650,6 +1257,17 @@ function drawRoundRobinResults(ctx) {
             } else {
                 teamStats[match.team2.id].lost++;
             }
+            
+            // Contar sets
+            match.scores.forEach(set => {
+                if (set.team2 > set.team1) {
+                    teamStats[match.team2.id].setsFavor++;
+                    teamStats[match.team2.id].points += 1; // 1 punto adicional por set ganado
+                }
+                if (set.team1 > 0) {
+                    teamStats[match.team2.id].setsContra++;
+                }
+            });
         }
     });
     
@@ -1957,3 +1575,331 @@ window.addEventListener('DOMContentLoaded', function() {
     // Inicializar pestaña de resultados
     renderResults();
 });
+
+// Agregar estilos CSS al inicio del archivo
+const styles = `
+    /* Estilos generales responsivos */
+    @media (max-width: 768px) {
+        .container {
+            padding: 10px;
+        }
+        
+        .tabs li {
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        
+        .tournament-card {
+            padding: 15px;
+            margin: 10px 0;
+        }
+    }
+
+    /* Estilos para los selectores de puntuación */
+    .score-input {
+        width: 80px;
+        padding: 8px;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        font-size: 16px;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .score-input:hover {
+        border-color: #2980b9;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .score-input:focus {
+        outline: none;
+        border-color: #2980b9;
+        box-shadow: 0 0 5px rgba(52,152,219,0.5);
+    }
+
+    /* Estilos para los botones */
+    .btn-show-score, .save-score {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+        max-width: 200px;
+        margin: 5px auto;
+    }
+
+    .btn-show-score {
+        background-color: #3498db;
+        color: white;
+    }
+
+    .save-score {
+        background-color: #2ecc71;
+        color: white;
+    }
+
+    .btn-show-score:hover, .save-score:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Estilos para las tarjetas de partidos */
+    .match-card {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        margin: 15px 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .match-teams {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 15px 0;
+        flex-wrap: wrap;
+    }
+
+    .match-team {
+        flex: 1;
+        padding: 10px;
+        text-align: center;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin: 5px;
+    }
+
+    .match-team.winner {
+        background: #2ecc71;
+        color: white;
+    }
+
+    /* Estilos para el formulario de puntuación */
+    .score-form {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+
+    .match-score {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .match-score > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .match-score label {
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    /* Estilos responsivos para el bracket */
+    .tournament-bracket {
+        overflow-x: auto;
+        padding: 10px;
+    }
+
+    .bracket-container {
+        display: flex;
+        gap: 20px;
+        min-width: max-content;
+    }
+
+    .round {
+        min-width: 250px;
+    }
+
+    .bracket-match {
+        background: white;
+        border-radius: 8px;
+        padding: 10px;
+        margin: 10px 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .bracket-team {
+        padding: 8px;
+        margin: 5px 0;
+        border-radius: 4px;
+        background: #f8f9fa;
+    }
+
+    .bracket-team.bracket-winner {
+        background: #2ecc71;
+        color: white;
+    }
+
+    /* Estilos para tablas responsivas */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+        table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 8px;
+            font-size: 14px;
+        }
+    }
+
+    /* Estilos para el podio */
+    .podium {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 10px;
+        margin: 20px 0;
+        height: 200px;
+    }
+
+    .podium-step {
+        background: #f1c40f;
+        width: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 10px;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .podium-step:nth-child(2) {
+        background: #bdc3c7;
+        height: 150px;
+    }
+
+    .podium-step:nth-child(1) {
+        height: 200px;
+    }
+
+    .podium-step:nth-child(3) {
+        height: 100px;
+    }
+
+    /* Estilos para mensajes de alerta */
+    .alert-info, .alert-success {
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        text-align: center;
+    }
+
+    .alert-info {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .alert-success {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+`;
+
+// Agregar estilos al documento
+const styleSheet = document.createElement("style");
+styleSheet.textContent = styles;
+document.head.appendChild(styleSheet);
+
+function renderMatches() {
+    const container = document.getElementById('matchesContainer');
+    
+    if (!tournament || matches.length === 0) {
+        container.innerHTML = '<div class="info-box">No hay partidos programados. Crea un torneo para generar los partidos.</div>';
+        return;
+    }
+    
+    let html = '';
+    
+    // Renderizar según el tipo de torneo
+    if (tournament.type === 'eliminacion') {
+        html = renderEliminationBracket();
+    } else if (tournament.type === 'grupos') {
+        html = renderGroupMatches();
+    } else {
+        // Para torneos americanos y americanos express
+        matches.forEach(match => {
+            if (!match.team1 || !match.team2) return;
+            
+            const team1Names = match.team1.players.map(p => p.name).join(' / ');
+            const team2Names = match.team2.players.map(p => p.name).join(' / ');
+            
+            html += `
+                <div class="match-card" data-id="${match.id}">
+                    <div class="match-teams">
+                        <div class="match-team ${match.winner === 'team1' ? 'winner' : ''}">
+                            <strong>${team1Names}</strong>
+                        </div>
+                        <div style="text-align: center; padding: 0 10px;">VS</div>
+                        <div class="match-team ${match.winner === 'team2' ? 'winner' : ''}">
+                            <strong>${team2Names}</strong>
+                        </div>
+                    </div>
+                    ${!match.completed ? `
+                        <div class="match-score">
+                            ${Array.from({ length: tournament.numSets }, (_, i) => {
+                                const setScore = match.scores[i] || { team1: 0, team2: 0 };
+                                return `
+                                    <div>
+                                        <label>Set ${i + 1}</label>
+                                        <div class="score-inputs">
+                                            <select class="score-input" data-match="${match.id}" data-team="team1" data-set="${i + 1}">
+                                                <option value="0" ${setScore.team1 === 0 ? 'selected' : ''}>0</option>
+                                                <option value="15" ${setScore.team1 === 1 ? 'selected' : ''}>15</option>
+                                                <option value="30" ${setScore.team1 === 2 ? 'selected' : ''}>30</option>
+                                                <option value="40" ${setScore.team1 === 3 ? 'selected' : ''}>40</option>
+                                                <option value="V" ${setScore.team1 === 4 ? 'selected' : ''}>V</option>
+                                            </select>
+                                            <select class="score-input" data-match="${match.id}" data-team="team2" data-set="${i + 1}">
+                                                <option value="0" ${setScore.team2 === 0 ? 'selected' : ''}>0</option>
+                                                <option value="15" ${setScore.team2 === 1 ? 'selected' : ''}>15</option>
+                                                <option value="30" ${setScore.team2 === 2 ? 'selected' : ''}>30</option>
+                                                <option value="40" ${setScore.team2 === 3 ? 'selected' : ''}>40</option>
+                                                <option value="V" ${setScore.team2 === 4 ? 'selected' : ''}>V</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                            <div style="text-align: center; margin-top: 10px;">
+                                <button class="save-score" data-match="${match.id}">Guardar Resultado</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+    }
+    
+    container.innerHTML = html;
+    
+    // Agregar event listeners después de renderizar
+    addMatchEventListeners();
+}
