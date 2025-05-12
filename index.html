@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini Torneos de Pádel</title>
+    <title>Jarmaneta Padel</title>
     <style>
         :root {
     --primary-color: #3498db;
@@ -221,38 +221,61 @@ tr:hover {
 }
 
 .match-card {
-    background-color: white;
-    padding: 15px;
-    border-radius: 5px;
-    box-shadow: var(--card-shadow);
-    margin-bottom: 15px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
 }
 
-.match-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
+.match-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
 .match-teams {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
+    align-items: center;
+    margin: 15px 0;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .match-team {
     flex: 1;
+    min-width: 200px;
+    padding: 15px;
     text-align: center;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 5px;
+    transition: all 0.3s ease;
+}
+
+.match-team.winner {
+    background: var(--secondary-color);
+    color: white;
+    transform: scale(1.05);
 }
 
 .match-score {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    margin-top: 15px;
-    padding: 15px;
+    margin-top: 20px;
+    padding: 20px;
     background-color: #f8f9fa;
-    border-radius: 8px;
+    border-radius: 12px;
+}
+
+.score-inputs {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .score-input {
@@ -279,7 +302,6 @@ tr:hover {
 .score-input:hover {
     border-color: var(--hover-color);
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transform: translateY(-1px);
 }
 
 .score-input:focus {
@@ -288,23 +310,90 @@ tr:hover {
     box-shadow: 0 0 5px rgba(52,152,219,0.5);
 }
 
-.match-score > div {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.save-score {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 200px;
+    margin: 10px auto;
+    display: block;
 }
 
-.match-score label {
-    font-weight: bold;
-    color: var(--text-color);
-    font-size: 14px;
+.save-score:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #27ae60;
 }
 
-.match-score .score-inputs {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
+@media (max-width: 768px) {
+    .match-card {
+        padding: 15px;
+        margin: 10px 0;
+    }
+
+    .match-teams {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .match-team {
+        width: 100%;
+        min-width: unset;
+        padding: 12px;
+    }
+
+    .score-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .score-input {
+        max-width: none;
+        width: 100%;
+    }
+
+    .match-score {
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+    .save-score {
+        width: 100%;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .match-card {
+        padding: 12px;
+        margin: 8px 0;
+    }
+
+    .match-team {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .score-input {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .match-score {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .save-score {
+        font-size: 14px;
+        padding: 8px;
+    }
 }
 
 .hidden {
@@ -698,7 +787,7 @@ canvas {
 <body>
     <div class="container">
         <header>
-            <h1>Mini Torneos de Pádel</h1>
+            <h1>Jarmaneta Padel</h1>
             <p>Organiza torneos de pádel con tus amigos de forma sencilla</p>
         </header>
 
@@ -800,7 +889,14 @@ canvas {
                             <input type="number" id="numGroups" min="2" value="2">
                         </div>
 
-                        <button type="submit">Crear Torneo</button>
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col">
+                                <button type="submit">Crear Torneo</button>
+                            </div>
+                            <div class="col">
+                                <button type="button" id="clearTournamentData" style="background-color: #e74c3c;">Limpiar Datos del Torneo</button>
+                            </div>
+                        </div>
                     </form>
                 </section>
 
@@ -2582,6 +2678,116 @@ function renderMatches() {
     // Agregar event listeners después de renderizar
     addMatchEventListeners();
 }
+
+// Asignar canchas a los partidos
+function assignCourts() {
+    courts = [];
+    
+    // Crear las canchas
+    for (let i = 0; i < tournament.numCourts; i++) {
+        courts.push({
+            id: 'court_' + i,
+            name: 'Cancha ' + (i + 1),
+            matches: []
+        });
+    }
+    
+    // Asignar partidos a las canchas
+    matches.forEach((match, index) => {
+        const courtIndex = index % tournament.numCourts;
+        match.court = courts[courtIndex].id;
+        courts[courtIndex].matches.push(match);
+    });
+    
+    renderCourts();
+}
+
+// Renderizar canchas
+function renderCourts() {
+    const container = document.getElementById('courtsContainer');
+    
+    if (!tournament || courts.length === 0) {
+        container.innerHTML = '<div class="info-box">No hay canchas asignadas. Por favor, crea un torneo primero.</div>';
+        return;
+    }
+    
+    let html = '<div class="courts-container">';
+    
+    courts.forEach(court => {
+        html += `
+            <div class="court-card">
+                <div class="court-header">
+                    <h3>${court.name}</h3>
+                </div>
+                <div class="court-matches">
+        `;
+        
+        if (court.matches.length === 0) {
+            html += '<div class="info-box">No hay partidos asignados a esta cancha.</div>';
+        } else {
+            court.matches.forEach(match => {
+                if (!match.team1 || !match.team2) return;
+                
+                const team1Names = match.team1.players.map(p => p.name).join(' / ');
+                const team2Names = match.team2.players.map(p => p.name).join(' / ');
+                
+                html += `
+                    <div class="court-match">
+                        <div class="match-teams">
+                            <div class="match-team ${match.winner === 'team1' ? 'winner' : ''}">
+                                <strong>${team1Names}</strong>
+                            </div>
+                            <div style="text-align: center; padding: 0 10px;">VS</div>
+                            <div class="match-team ${match.winner === 'team2' ? 'winner' : ''}">
+                                <strong>${team2Names}</strong>
+                            </div>
+                        </div>
+                        ${match.completed ? `
+                            <div class="match-score">
+                                ${match.scores.map(set => `${set.team1}-${set.team2}`).join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+        }
+        
+        html += '</div></div>';
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Agregar después de la función saveLocalData()
+// Función para limpiar todos los datos del torneo
+function clearTournamentData() {
+    if (confirm('¿Estás seguro de que quieres eliminar todos los datos del torneo actual? Esta acción no se puede deshacer.')) {
+        // Limpiar datos del torneo
+        tournament = null;
+        teams = [];
+        matches = [];
+        courts = [];
+        
+        // Limpiar localStorage
+        localStorage.removeItem('padelTournament');
+        localStorage.removeItem('padelTeams');
+        localStorage.removeItem('padelMatches');
+        localStorage.removeItem('padelCourts');
+        
+        // Actualizar la interfaz
+        renderTeams();
+        renderMatches();
+        renderCourts();
+        renderResults();
+        
+        // Mostrar mensaje de éxito
+        alert('Datos del torneo eliminados correctamente.');
+    }
+}
+
+// Agregar el event listener para el botón de limpiar datos
+document.getElementById('clearTournamentData').addEventListener('click', clearTournamentData);
 
     </script>
 </body>
